@@ -70,3 +70,7 @@ charts/
 tmp/
 temp/
 *.swp
+# Local binaries
+kubectl
+kind
+helm
