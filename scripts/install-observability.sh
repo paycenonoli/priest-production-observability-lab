@@ -24,3 +24,8 @@ bash scripts/install-prometheus.sh
 
 echo ""
 echo "Observability platform installation completed!"
+
+echo ""
+echo "Installing Loki..."
+
+bash scripts/install-loki.sh
