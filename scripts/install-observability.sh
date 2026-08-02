@@ -29,3 +29,8 @@ echo ""
 echo "Installing Loki..."
 
 bash scripts/install-loki.sh
+
+echo ""
+echo "Installing Tempo..."
+
+bash scripts/install-tempo.sh
