@@ -2,4 +2,15 @@ const client = require("prom-client");
 
 client.collectDefaultMetrics();
 
-module.exports = client;
+const httpRequestDuration = new client.Histogram({
+    name: "http_request_duration_seconds",
+    help: "HTTP request duration in seconds",
+    labelNames: ["method", "route", "status_code"],
+    buckets: [0.05, 0.1, 0.3, 0.5, 1, 2, 5]
+});
+
+module.exports = {
+    client,
+    register: client.register,
+    httpRequestDuration
+};
