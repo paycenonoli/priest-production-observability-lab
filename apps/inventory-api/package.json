@@ -1,0 +1,20 @@
+{
+  "name": "inventory-api",
+  "version": "1.0.0",
+  "description": "Inventory API for Observability Lab",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.13.4",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.63.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.205.0",
+    "@opentelemetry/resources": "^2.1.0",
+    "@opentelemetry/sdk-node": "^0.205.0",
+    "@opentelemetry/semantic-conventions": "^1.36.0",
+    "express": "^4.19.2",
+    "prom-client": "^15.1.3"
+  }
+}

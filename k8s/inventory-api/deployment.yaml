@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: inventory-api
+  namespace: observability
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: inventory-api
+
+  template:
+    metadata:
+      labels:
+        app: inventory-api
+
+    spec:
+      containers:
+      - name: inventory-api
+        image: inventory-api:v6
+        imagePullPolicy: Never
+
+        command:
+          - node
+
+        args:
+          - --require
+          - "@opentelemetry/auto-instrumentations-node/register"
+          - app.js
+
+        env:
+          - name: OTEL_SERVICE_NAME
+            value: inventory-api
+
+          - name: OTEL_EXPORTER_OTLP_PROTOCOL
+            value: grpc
+
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://otel-collector:4317
+
+          - name: OTEL_TRACES_EXPORTER
+            value: otlp
+
+          - name: OTEL_METRICS_EXPORTER
+            value: none
+
+        ports:
+          - containerPort: 8080
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080

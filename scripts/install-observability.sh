@@ -19,18 +19,21 @@ helm repo update
 
 echo ""
 echo "Installing Prometheus Stack..."
-
 bash scripts/install-prometheus.sh
 
 echo ""
-echo "Observability platform installation completed!"
-
-echo ""
 echo "Installing Loki..."
-
 bash scripts/install-loki.sh
 
 echo ""
 echo "Installing Tempo..."
-
 bash scripts/install-tempo.sh
+
+echo ""
+echo "Installing OpenTelemetry Collector..."
+bash scripts/install-otel-collector.sh
+
+echo ""
+echo "========================================"
+echo "Observability Platform Installed!"
+echo "========================================"

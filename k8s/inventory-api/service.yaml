@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-api
+  namespace: observability
+  labels:
+    app: inventory-api
+
+spec:
+  selector:
+    app: inventory-api
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+  type: ClusterIP
