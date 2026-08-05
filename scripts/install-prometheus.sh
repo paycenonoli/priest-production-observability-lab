@@ -6,6 +6,8 @@ echo "========================================"
 echo "Installing Prometheus Stack"
 echo "========================================"
 
+CHART_VERSION="77.11.0"
+
 helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
     --namespace observability \
     --version 77.11.0 \

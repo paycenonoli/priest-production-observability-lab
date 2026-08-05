@@ -1,6 +1,14 @@
 grafana:
   enabled: true
 
+  additionalDataSources:
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo:3200
+      editable: true
+
 alertmanager:
   enabled: true
 
