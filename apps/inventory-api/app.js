@@ -22,11 +22,16 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
+
+    // Simulate a slow downstream dependency
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
     res.json({
         service: "inventory-api",
         status: "running"
     });
+
 });
 
 app.get("/health", (req, res) => {
