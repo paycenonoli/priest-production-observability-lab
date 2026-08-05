@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 31,
+  "id": 30,
   "links": [],
   "panels": [
     {
@@ -76,7 +76,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(http_request_duration_seconds_count{status_code=~\"5..\",route!=\"/metrics\"}[5m]))",
+          "expr": "sum(\r\n  rate(\r\n    http_request_duration_seconds_count{\r\n      status_code=~\"5..\",\r\n      route!=\"/metrics\"\r\n    }[5m]\r\n  )\r\n) or vector(0)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -600,5 +600,5 @@
   "timezone": "browser",
   "title": "Microservice Operations Dashboard",
   "uid": "337e50f7-fbfd-4f37-bca2-6659d711131a",
-  "version": 14
+  "version": 2
 }
