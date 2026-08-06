@@ -19,19 +19,43 @@ spec:
 
     spec:
       containers:
-        - name: orders-api
-          image: orders-api:v1
-          imagePullPolicy: Never
+      - name: orders-api
+        image: orders-api:v2
+        imagePullPolicy: Never
 
-          ports:
-            - containerPort: 8081
+        command:
+          - node
 
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8081
+        args:
+          - --require
+          - "@opentelemetry/auto-instrumentations-node/register"
+          - app.js
 
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8081
+        env:
+          - name: OTEL_SERVICE_NAME
+            value: orders-api
+
+          - name: OTEL_EXPORTER_OTLP_PROTOCOL
+            value: grpc
+
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://otel-collector:4317
+
+          - name: OTEL_TRACES_EXPORTER
+            value: otlp
+
+          - name: OTEL_METRICS_EXPORTER
+            value: none
+
+        ports:
+          - containerPort: 8081
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081

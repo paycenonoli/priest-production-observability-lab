@@ -1,6 +1,23 @@
+const metrics = require("./metrics");
 const express = require("express");
 
 const app = express();
+
+// Metrics middleware
+app.use((req, res, next) => {
+
+    const end = metrics.httpRequestDuration.startTimer();
+
+    res.on("finish", () => {
+        end({
+            method: req.method,
+            route: req.route ? req.route.path : req.path,
+            status_code: res.statusCode
+        });
+    });
+
+    next();
+});
 
 app.get("/orders", (req, res) => {
     res.json([
@@ -19,6 +36,11 @@ app.get("/orders", (req, res) => {
 
 app.get("/health", (req, res) => {
     res.send("OK");
+});
+
+app.get("/metrics", async (req, res) => {
+    res.set("Content-Type", metrics.register.contentType);
+    res.end(await metrics.register.metrics());
 });
 
 app.listen(8081, () => {
