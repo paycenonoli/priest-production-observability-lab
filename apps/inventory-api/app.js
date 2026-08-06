@@ -23,15 +23,22 @@ app.use((req, res, next) => {
 });
 
 app.get("/", async (req, res) => {
+    try {
+        const response = await fetch("http://orders-api:8081/orders");
 
-    // Simulate a slow downstream dependency
-    await new Promise(resolve => setTimeout(resolve, 3000));
+        const orders = await response.json();
 
-    res.json({
-        service: "inventory-api",
-        status: "running"
-    });
+        res.json({
+            service: "inventory-api",
+            orders: orders
+        });
+    } catch (err) {
+        console.error(err);
 
+        res.status(500).json({
+            error: "Unable to reach Orders API"
+        });
+    }
 });
 
 app.get("/health", (req, res) => {

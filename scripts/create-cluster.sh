@@ -36,3 +36,4 @@ kubectl get nodes -o wide
 
 echo
 echo "✅ KIND cluster '${CLUSTER_NAME}' is ready."
+ku

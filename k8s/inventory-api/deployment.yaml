@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: inventory-api
-        image: inventory-api:v10
+        image: inventory-api:v11
         imagePullPolicy: Never
 
         command:
