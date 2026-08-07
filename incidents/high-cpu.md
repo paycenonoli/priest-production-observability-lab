@@ -260,12 +260,15 @@ Request durations remained normal.
 
 # Lessons Learned
 
-- Metrics quickly identified abnormal resource usage.
-- Prometheus precisely identified the CPU-consuming workload.
-- Kubernetes verified workload health and scheduling.
-- Loki confirmed that the application itself was healthy.
-- Tempo confirmed that user requests were unaffected.
-- Infrastructure incidents do not always generate useful logs or traces, but checking them helps determine whether users are impacted.
+# Lessons Learned
+
+- Metrics are typically the fastest way to detect infrastructure resource issues.
+- Prometheus precisely identified the workload responsible for high CPU consumption.
+- Kubernetes confirmed the workload was healthy and behaving as configured.
+- Loki confirmed that the application continued processing requests without errors.
+- Tempo confirmed that request processing latency remained normal despite the CPU spike.
+- Correlating metrics, logs, traces, and Kubernetes state provides higher confidence when determining whether an incident is infrastructure-related or application-related.
+- Dashboard scope matters. A dashboard focused solely on application metrics may not immediately expose cluster-wide resource issues. Adding a Cluster Operations Dashboard improves visibility during infrastructure incidents.
 
 ---
 
