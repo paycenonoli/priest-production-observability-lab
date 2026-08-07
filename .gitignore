@@ -74,3 +74,6 @@ temp/
 kubectl
 kind
 helm
+
+# Docker image exports
+*.tar
