@@ -15,102 +15,59 @@
 
 # Executive Summary
 
-A controlled CPU stress test was executed using a Kubernetes Job to simulate a High CPU incident within the observability cluster.
+A controlled CPU stress workload was deployed into the Kubernetes cluster to simulate a High CPU production incident.
 
-The investigation followed a standard SRE workflow using Kubernetes, Prometheus, Grafana, Loki, and Tempo.
+The investigation leveraged Grafana, Prometheus, Kubernetes, Loki, and Tempo to determine whether the issue originated from the application or the underlying infrastructure.
 
-The root cause was identified as a CPU stress workload intentionally consuming approximately one CPU core.
-
-No production application was impacted.
+The investigation concluded that a Kubernetes Job (`cpu-stress`) intentionally consumed nearly one CPU core without degrading application performance.
 
 ---
 
-# Objectives
+# Incident Timeline
 
-- Simulate a production High CPU incident.
-- Investigate using observability tooling.
-- Identify the root cause.
-- Restore the cluster to a healthy state.
-- Document the investigation.
-
----
-
-# Symptoms
-
-Observed alert:
-
-- High CPU Usage
-
-Initial observations:
-
-- CPU usage increased significantly.
-- Inventory API remained healthy.
-- Orders API remained healthy.
-- No customer-facing outage.
+| Time | Event |
+|------|-------|
+| T0 | CPU stress Job deployed |
+| T+1 min | Cluster CPU alert triggered |
+| T+2 min | Grafana dashboard reviewed |
+| T+4 min | Prometheus confirmed CPU consumer |
+| T+6 min | Kubernetes inspection performed |
+| T+8 min | Loki logs reviewed |
+| T+10 min | Tempo traces reviewed |
+| T+12 min | Root cause identified |
+| T+14 min | CPU stress Job removed |
+| T+16 min | Recovery verified |
 
 ---
 
 # Investigation
 
-## Step 1 – Verify Pod Resource Usage
+---
 
-Command
+## Step 1 – Dashboard Review (Grafana)
 
-```bash
-kubectl top pods -n observability
-```
+### Observations
 
-Output
+| Metric | Observation |
+|---------|-------------|
+| Cluster CPU | Increased significantly |
+| Inventory API CPU | Remained low |
+| Cluster Memory | Stable |
+| Inventory API Memory | Stable |
+| P95 Latency | Stable |
+| Request Rate | Stable |
+| Service Availability | UP |
+| Event Loop Lag | Normal |
 
-```text
-cpu-stress-ptnzl          971m CPU
-inventory-api               6m CPU
-orders-api                  4m CPU
-prometheus                 46m CPU
-grafana                    10m CPU
-```
+### Interpretation
 
-### Finding
-
-The cpu-stress Job was consuming approximately one full CPU core.
-
-Inventory API CPU usage remained normal.
+The cluster experienced high CPU utilization, but no evidence suggested application degradation.
 
 ---
 
-## Step 2 – Grafana Dashboard
+## Step 2 – Prometheus Investigation
 
-Observed
-
-### CPU
-
-Dashboard CPU panel did not display the stress Job because it was scoped to the Inventory API.
-
-### Memory
-
-Memory usage remained stable.
-
-### Service Availability
-
-UP
-
-### Request Rate
-
-Stable.
-
-### P95 Latency
-
-0.0475 ms
-
-### Finding
-
-The application remained healthy despite increased node CPU utilization.
-
----
-
-## Step 3 – Prometheus
-
-Query
+### Query
 
 ```promql
 topk(
@@ -119,72 +76,149 @@ topk(
 )
 ```
 
-Result
+### Result
 
-```text
+```
 cpu-stress-ptnzl
 ≈0.964 CPU
 ```
 
-### Finding
+### Interpretation
 
-Prometheus confirmed that the cpu-stress workload was consuming nearly one CPU core.
+One workload was consuming nearly an entire CPU core.
 
 ---
 
-## Step 4 – Loki
+## Step 3 – Kubernetes Investigation
 
-Query
+### Commands
+
+```bash
+kubectl top pods -n observability
+```
+
+```
+cpu-stress        971m
+inventory-api       6m
+orders-api          5m
+```
+
+```bash
+kubectl get pods -n observability
+```
+
+```bash
+kubectl describe pod cpu-stress-xxxxx
+```
+
+### Findings
+
+- Job running normally
+- No CrashLoopBackOff
+- No image pull issues
+- No scheduling failures
+- Resource consumption consistent with the stress workload
+
+### Interpretation
+
+The Kubernetes control plane was healthy.
+
+The CPU consumption originated from the cpu-stress Job.
+
+---
+
+## Step 4 – Log Investigation (Loki)
+
+### Query
+
+```logql
+{namespace="observability", pod=~"inventory-api.*"}
+```
+
+### Additional Query
 
 ```logql
 {namespace="observability", pod=~"cpu-stress.*"}
 ```
 
-Result
+### Findings
 
-No logs found.
+Inventory API logs showed successful requests.
 
-### Finding
+```
+GET /health 200
+GET /metrics 200
+GET /inventory 200
+```
 
-The stress utility does not continuously write to stdout/stderr.
+No stack traces.
 
-No useful application logs were generated.
+No exceptions.
+
+No HTTP 500 responses.
+
+No logs were produced by the cpu-stress Job because the stress utility does not continuously write to stdout or stderr.
+
+### Interpretation
+
+The application continued processing requests normally.
+
+No application errors were associated with the CPU spike.
 
 ---
 
-## Step 5 – Tempo
+## Step 5 – Trace Investigation (Tempo)
 
-Search
-
-Service Name
+### Service Examined
 
 ```
-cpu-stress
+inventory-api
 ```
 
-Result
+### Findings
 
-No traces.
+Recent traces completed successfully.
 
-### Finding
+Observed characteristics:
 
-The workload was not instrumented with OpenTelemetry and did not process HTTP requests.
+- Normal span durations
+- No failed spans
+- No retries
+- No downstream dependency delays
 
-No distributed traces were expected.
+No traces existed for the cpu-stress Job because it was not instrumented with OpenTelemetry and did not process HTTP requests.
+
+### Interpretation
+
+Application request processing remained healthy.
+
+The CPU increase did not affect request execution time.
+
+---
+
+# Correlation
+
+| Tool | Observation |
+|------|-------------|
+| Grafana | High cluster CPU |
+| Prometheus | cpu-stress consuming ~0.96 CPU |
+| kubectl | cpu-stress using ~971m CPU |
+| Loki | No application errors |
+| Tempo | Request latency remained normal |
 
 ---
 
 # Root Cause
 
-A Kubernetes Job named **cpu-stress** intentionally consumed approximately one CPU core.
+A Kubernetes Job named **cpu-stress** intentionally consumed nearly one CPU core.
 
-The workload successfully simulated a High CPU incident without affecting application availability.
+The workload created infrastructure resource pressure but did not impact application performance.
 
 ---
 
 # Resolution
 
-Delete the Job.
+Deleted the stress Job.
 
 ```bash
 kubectl delete job cpu-stress -n observability
@@ -194,67 +228,55 @@ kubectl delete job cpu-stress -n observability
 
 # Verification
 
-Commands
+Repeated investigation after mitigation.
 
-```bash
-kubectl get jobs -n observability
+### Grafana
+
+- CPU returned to baseline.
+- Memory unchanged.
+- Availability remained UP.
+
+### Prometheus
+
+CPU usage normalized.
+
+### Kubernetes
+
+```
+kubectl top pods
 ```
 
-Expected
+No abnormal CPU consumers remained.
 
-```text
-No resources found.
-```
+### Loki
 
-Verify CPU returned to normal.
+No application errors observed.
 
-```bash
-kubectl top pods -n observability
-```
+### Tempo
 
-Result
-
-Inventory API returned to normal CPU usage.
-
-The cpu-stress workload was removed.
+Request durations remained normal.
 
 ---
 
 # Lessons Learned
 
-- Metrics identified the resource bottleneck immediately.
-- Prometheus confirmed CPU consumption quantitatively.
-- Loki produced no logs because the workload emitted none.
-- Tempo produced no traces because the workload was not instrumented.
-- Not every incident produces metrics, logs, and traces simultaneously.
-- Dashboard scope is important; the current CPU panel only tracks the Inventory API and should be expanded to include cluster-wide CPU usage.
-
----
-
-# Improvements
-
-Future dashboard enhancements:
-
-- Cluster CPU Usage
-- Top CPU-consuming Pods
-- Top Memory-consuming Pods
-- Node CPU Utilization
-- Namespace Resource Usage
+- Metrics quickly identified abnormal resource usage.
+- Prometheus precisely identified the CPU-consuming workload.
+- Kubernetes verified workload health and scheduling.
+- Loki confirmed that the application itself was healthy.
+- Tempo confirmed that user requests were unaffected.
+- Infrastructure incidents do not always generate useful logs or traces, but checking them helps determine whether users are impacted.
 
 ---
 
 # Commands Used
 
 ```bash
-kubectl apply -f cpu-stress-job.yaml
-
 kubectl top pods -n observability
-
-kubectl get jobs -n observability
 
 kubectl get pods -n observability
 
-kubectl describe pod cpu-stress-xxxxx -n observability
+kubectl describe pod cpu-stress-xxxxx
 
 kubectl delete job cpu-stress -n observability
 ```
@@ -271,14 +293,17 @@ topk(
 Loki
 
 ```logql
+{namespace="observability", pod=~"inventory-api.*"}
+
 {namespace="observability", pod=~"cpu-stress.*"}
 ```
 
 Tempo
 
 ```
-Search:
-cpu-stress
+Search Service
+
+inventory-api
 ```
 
 ---
@@ -287,19 +312,22 @@ cpu-stress
 
 | Item | Status |
 |------|--------|
-| Root Cause Identified | ✅ |
-| Metrics Collected | ✅ |
+| Alert Detected | ✅ |
+| Metrics Reviewed | ✅ |
+| Prometheus Investigation | ✅ |
+| Kubernetes Investigation | ✅ |
 | Logs Reviewed | ✅ |
 | Traces Reviewed | ✅ |
-| Incident Resolved | ✅ |
+| Root Cause Identified | ✅ |
+| Mitigation Applied | ✅ |
 | Recovery Verified | ✅ |
 
 ---
 
 # Conclusion
 
-This incident successfully demonstrated a production-style High CPU investigation using Kubernetes, Prometheus, Grafana, Loki, and Tempo.
+The High CPU incident originated from an intentionally deployed Kubernetes stress workload.
 
-Although CPU utilization increased significantly due to a controlled stress workload, the Inventory API remained available and continued serving requests with stable latency.
+Although cluster CPU utilization increased significantly, application health remained unaffected. Metrics identified the resource bottleneck, while logs and traces confirmed that the Inventory API continued serving requests normally throughout the incident.
 
-The incident validated the observability platform and established a repeatable investigation workflow for future operational incidents.
+The investigation demonstrated the value of correlating metrics, Kubernetes state, logs, and traces to distinguish infrastructure resource pressure from application failures.
