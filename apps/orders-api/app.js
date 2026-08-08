@@ -1,48 +1,117 @@
 const metrics = require("./metrics");
 const express = require("express");
+const { createClient } = require("redis");
 
 const app = express();
 
-// Metrics middleware
-app.use((req, res, next) => {
+const redisClient = createClient({
+    url: "redis://redis:6379"
+});
 
-    const end = metrics.httpRequestDuration.startTimer();
+redisClient.on("error", (err) => {
+    console.error("Redis Client Error", err);
+});
 
-    res.on("finish", () => {
-        end({
-            method: req.method,
-            route: req.route ? req.route.path : req.path,
-            status_code: res.statusCode
+async function start() {
+
+    await redisClient.connect();
+
+    console.log("Connected to Redis");
+
+    // Seed orders into Redis if they don't already exist
+    const existingOrders = await redisClient.get("orders");
+
+    if (!existingOrders) {
+
+        const orders = [
+            {
+                id: 1,
+                item: "Laptop",
+                quantity: 2
+            },
+            {
+                id: 2,
+                item: "Keyboard",
+                quantity: 1
+            }
+        ];
+
+        await redisClient.set("orders", JSON.stringify(orders));
+
+        console.log("Orders seeded into Redis");
+
+    }
+
+    // Metrics middleware
+    app.use((req, res, next) => {
+
+        const end = metrics.httpRequestDuration.startTimer();
+
+        res.on("finish", () => {
+
+            end({
+                method: req.method,
+                route: req.route ? req.route.path : req.path,
+                status_code: res.statusCode
+            });
+
         });
+
+        next();
+
     });
 
-    next();
-});
+    // Orders API
+    app.get("/orders", async (req, res) => {
 
-app.get("/orders", (req, res) => {
-    res.json([
-        {
-            id: 1,
-            item: "Laptop",
-            quantity: 2
-        },
-        {
-            id: 2,
-            item: "Keyboard",
-            quantity: 1
+        try {
+
+            const data = await redisClient.get("orders");
+
+            const orders = JSON.parse(data || "[]");
+
+            res.json(orders);
+
+        } catch (err) {
+
+            console.error("Failed to retrieve orders from Redis", err);
+
+            res.status(500).json({
+                error: "Unable to retrieve orders"
+            });
+
         }
-    ]);
-});
 
-app.get("/health", (req, res) => {
-    res.send("OK");
-});
+    });
 
-app.get("/metrics", async (req, res) => {
-    res.set("Content-Type", metrics.register.contentType);
-    res.end(await metrics.register.metrics());
-});
+    // Health
+    app.get("/health", (req, res) => {
 
-app.listen(8081, () => {
-    console.log("Orders API running on port 8081");
+        res.send("OK");
+
+    });
+
+    // Metrics
+    app.get("/metrics", async (req, res) => {
+
+        res.set("Content-Type", metrics.register.contentType);
+
+        res.end(await metrics.register.metrics());
+
+    });
+
+    app.listen(8081, () => {
+
+        console.log("Orders API running on port 8081");
+
+    });
+
+}
+
+start().catch((err) => {
+
+    console.error("Failed to start Orders API", err);
+
+    process.exit(1);
+
 });
